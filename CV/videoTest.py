@@ -1,3 +1,5 @@
+# Code sourced and modified from http://opencv-python-tutroals.readthedocs.io
+# All rights go to original creators
 import numpy as np
 import cv2
 
