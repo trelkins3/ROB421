@@ -1,0 +1,35 @@
+=== tracker.py ===	If python is configured to PATH, run python tracker.py
+Line 8: Change "grb_2.mp4" to 0 or 1 when a functional camera is plugged in.
+	Video devices will need to be checked via command line on Linux.
+Line 9: Will determine if cap object opened correctly.
+Line 10: '/dev/ttyACM0' will need to be replaced with a COM port on Windows
+Lines 15-18: These are the point sets for the rectangle contours that compose the boundary
+	regions. Format is [top left, bottom left, top right, bottom right], values can be
+	modified by hand to create new boundary regions.
+Lines 29-32: Same as above, manually pulled points to generate the contours (this is the 
+	code that actually generates the contours)
+Line 50: Change 2nd param to change threshold sensitivity, higher values will capture less.
+Line 51: Don't mess with this.
+Line 54: Change 2nd param to change threshold sensitivity, higher values will capture less,
+	I recommend against changing both this and line 50 simultaneously.
+Line 57: To run on Windows, add "_," before contours.
+Lines 100, 101: Comment out to have cleaner cmd output.
+Lines 105-107: Uncomment as needed to view different streams for debug.
+
+=== sensorDemo.ino ===	Need digitalWriteFast.h in local dir, must be in its own sketch dir
+Lines 9-24: Change macros as needed for functionality.
+Lines 45-48: Fake stand-in functions, ignore them.
+Lines 57-66: Worried that serial prints here might interfere with serial read somehow. Intuition
+	says this won't be a problem, but I'm wary.
+Lines 57, 58: Hardcode incomingByte to 0 or 1 for blackbox testing on just the Arduino.
+Line 72: Change the X value in '(min(X - 10*(int)...' to change motor RPM. Correlates directly
+	with RPM of motor as calculated by encoder.
+Line 76: I am concerned this delay() will cause PWM problems, but don't want the motor to run
+	and then immediately switch back to 0 RPM.
+Line 87: See line 72.
+Line 92: See line 76.
+Line 106: See line 76.
+
+=== sensorDemoSansEncoder.ino === must be in its own sketch dir
+Lines 15, 16: If not able to receive serial data from Python, hardcode incomingByte to 0 or 1
+Lines 22, 27: 255 is 0% PWM

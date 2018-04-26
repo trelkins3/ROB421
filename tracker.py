@@ -57,6 +57,7 @@ while(True):
 	contours,_ = cv2.findContours(thresh.copy(),cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
 	
 	# Used to optimize which move command is called based on number of contours in region
+	# This may need to be adjusted to deal with corner contours later on?
 	contourCount = [0,0,0,0]
 	
 	# For all found contours
@@ -83,7 +84,6 @@ while(True):
 				i += 1
 	
 	# Comparison to determine which serial to send
-	# What do we do if they're the same?
 	# Note the offset here, an index of 0 means: no motion, don't send anything
 	# Subtract 1 from the index for the 'real' array index when currentMaxIndex != 0
 	i = 1
