@@ -5,7 +5,7 @@ int Limit = 23; //define Enable Pin
 //accelstepper
 
 int timeDel = 100;
-int steps = 1400;
+int steps = 1350;
 
 void setup() {
   pinMode (PUL, OUTPUT);
@@ -19,23 +19,31 @@ void loop()
   Serial.println(digitalRead(Limit));
   while(digitalRead(Limit) == LOW)
   {
-    digitalWrite(DIR,LOW);
+    digitalWrite(DIR,HIGH);
     digitalWrite(PUL,HIGH);
-    delayMicroseconds(timeDel);
+    delayMicroseconds(10*timeDel);
     digitalWrite(PUL,LOW);
-    delayMicroseconds(timeDel);
+    delayMicroseconds(10*timeDel);
   }
 
   if(digitalRead(Limit) == HIGH)
   {
     delay(5000);
+    int mult = 1;
     for (int i=0; i<steps; i++)
     {
-      digitalWrite(DIR,HIGH);
+      if(i < 250){
+        mult = 5;
+      }
+      else{
+        mult = 1;
+      }
+      
+      digitalWrite(DIR,LOW);
       digitalWrite(PUL,HIGH);
-      delayMicroseconds(timeDel);
+      delayMicroseconds(timeDel*mult);
       digitalWrite(PUL,LOW);
-      delayMicroseconds(timeDel);
+      delayMicroseconds(timeDel*mult);
     }
     delay(5000);
   }
