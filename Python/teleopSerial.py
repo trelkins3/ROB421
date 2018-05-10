@@ -82,21 +82,22 @@ while(True):
         # the other.
         axes = joystick.get_numaxes()
         
-        for i in range(0,4):
-            if (i != 2):
-                axis = joystick.get_axis(i)
-                axis = (axis+1)/2
-                temp = str(abs(int(axis*1000)%1000))
-                if(temp != 500):
+        if(ser.out_waiting == 0):
+            for i in range(0,4):
+                if (i != 2):
+                    axis = joystick.get_axis(i)
+                    axis = (axis+1)/2
+                    temp = str(abs(int(axis*1000)%1000))
+                    
                     if(i == 0):
-                        #ser.write((str("A") + temp + '\n').encode('utf-8'))
-                        print((str("A") + str(abs(int(axis*1000)%1000)) + '\n').encode('utf-8'))
+                        ser.write(('A' + temp + 'X').encode('utf-8'))
+                         #print((str("A") + str(abs(int(axis*1000)%1000)) + '\n').encode('utf-8'))
                     elif(i == 1):
-                        #ser.write((str("B") + temp + '\n').encode('utf-8'))
-                        print((str("B") + str(abs(int(axis*1000)%1000)) + '\n').encode('utf-8'))
+                        ser.write(('B' + temp + 'X').encode('utf-8'))
+                        #print((str("B") + str(abs(int(axis*1000)%1000)) + '\n').encode('utf-8'))
                     elif(i == 3):
-                        #ser.write((str("C") + temp + '\n').encode('utf-8'))
-                        print((str("C") + str(abs(int(axis*1000)%1000)) + '\n').encode('utf-8'))
+                        ser.write(('C' + temp + 'X').encode('utf-8'))
+                        #print((str("C") + str(abs(int(axis*1000)%1000)) + '\n').encode('utf-8'))
 
 #elif(i == 4):# Needs to be rewritten as button
                     #print(str("D") + str(abs(int(axis*1000)%1000)) + '\n')
