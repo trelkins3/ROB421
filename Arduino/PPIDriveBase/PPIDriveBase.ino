@@ -1,12 +1,12 @@
 #include <Encoder.h>
 #include <math.h>
 
-#define MAX_VEL 30
-#define MAX_ROT_VEL 0.25
+#define MAX_VEL 40
+#define MAX_ROT_VEL 0.1
 #define R_BODY 15.748
 
-#define KP 1.00
-#define KI 1.00
+#define KP 5.00
+#define KI 0.00
 
 #define DRIVE_1_PWM 29
 #define DRIVE_1_DIR_A 27
@@ -39,6 +39,10 @@ double des_rotational_vel = 0;
 double motor_1_integrated = 0;
 double motor_2_integrated = 0;
 double motor_3_integrated = 0;
+
+double curr_PWM_1 = 0;
+double curr_PWM_2 = 0;
+double curr_PWM_3 = 0;
 
 Encoder enc1(ENC_1_A,ENC_1_B);
 double _Enc1_Vel = 0;
@@ -109,17 +113,21 @@ void updateDriveMotors(){
   motor_1_integrated = motor_1_integrated + (motor_1_speed - _Enc1_Vel)*(loopPeriod*0.000001);
   motor_2_integrated = motor_2_integrated + (motor_2_speed - _Enc2_Vel)*(loopPeriod*0.000001);
   motor_3_integrated = motor_3_integrated + (motor_3_speed - _Enc3_Vel)*(loopPeriod*0.000001);
+
+  curr_PWM_1 = min(255,max(-255,getFeedForward( motor_1_speed, 1) + KP*(motor_1_speed - _Enc1_Vel) + KI*motor_1_integrated));
+  curr_PWM_2 = min(255,max(-255,getFeedForward( motor_2_speed, 2) + KP*(motor_2_speed - _Enc2_Vel) + KI*motor_2_integrated));
+  curr_PWM_3 = min(255,max(-255,getFeedForward( motor_3_speed, 3) + KP*(motor_3_speed - _Enc3_Vel) + KI*motor_3_integrated));
   
-  analogWrite(DRIVE_1_PWM,min(255,abs(getFeedForward( motor_1_speed, 1)) + KP*(motor_1_speed - _Enc1_Vel) + KI*motor_1_integrated));
-  analogWrite(DRIVE_2_PWM,min(255,abs(getFeedForward( motor_2_speed, 2)) + KP*(motor_2_speed - _Enc2_Vel) + KI*motor_2_integrated));
-  analogWrite(DRIVE_3_PWM,min(255,abs(getFeedForward( motor_3_speed, 3)) + KP*(motor_3_speed - _Enc3_Vel) + KI*motor_3_integrated));
+  analogWrite(DRIVE_1_PWM,abs(curr_PWM_1));
+  analogWrite(DRIVE_2_PWM,abs(curr_PWM_2));
+  analogWrite(DRIVE_3_PWM,abs(curr_PWM_3));
   
-  digitalWrite(DRIVE_1_DIR_A, motor_1_speed > 0);
-  digitalWrite(DRIVE_1_DIR_B, motor_1_speed <= 0);
-  digitalWrite(DRIVE_2_DIR_A, motor_2_speed > 0);
-  digitalWrite(DRIVE_2_DIR_B, motor_2_speed <= 0);
-  digitalWrite(DRIVE_3_DIR_A, motor_3_speed > 0);
-  digitalWrite(DRIVE_3_DIR_B, motor_3_speed <= 0); 
+  digitalWrite(DRIVE_1_DIR_A, curr_PWM_1 > 0);
+  digitalWrite(DRIVE_1_DIR_B, curr_PWM_1 <= 0);
+  digitalWrite(DRIVE_2_DIR_A, curr_PWM_2 > 0);
+  digitalWrite(DRIVE_2_DIR_B, curr_PWM_2 <= 0);
+  digitalWrite(DRIVE_3_DIR_A, curr_PWM_3 > 0);
+  digitalWrite(DRIVE_3_DIR_B, curr_PWM_3 <= 0); 
 }
 
 void updateVelocityEstimates(){
@@ -184,14 +192,14 @@ void parseSerial(){
       
       //Serial.print("buffer_: ");
       //Serial.print(buffer_);
-      if(inData.charAt(0) == 'A'){   
+      if(inData.charAt(0) == 'B'){   
         des_forward_vel = MAX_VEL*(buffer_ - 500)/500.0;
         
         //Serial.print("Read in: ");
         //Serial.print(inData);
       }
-      else if((inData.charAt(0) == 'B')){        
-        des_right_vel = MAX_VEL*(buffer_ - 500)/500.0;
+      else if((inData.charAt(0) == 'A')){        
+        des_right_vel = -MAX_VEL*(buffer_ - 500)/500.0;
         
         //Serial.print("Read in: ");
         //Serial.print(inData);
@@ -206,8 +214,26 @@ void parseSerial(){
       
       }
       //else if( inData.charAt(0) == 'D' && inData.length() <= 3){}
+      Serial.print(STEP_TO_DIST*(enc1.read())); Serial.print(",");
+      Serial.print(STEP_TO_DIST*(enc2.read())); Serial.print(",");
+      Serial.print(STEP_TO_DIST*(enc3.read())); Serial.print(",");
       
-      Serial.print('\n');
+      Serial.print(_Enc1_Vel); Serial.print(",");
+      Serial.print(_Enc2_Vel); Serial.print(",");
+      Serial.print(_Enc3_Vel); Serial.print(",");
+      
+      Serial.print((0.86602*des_forward_vel + 0.5*des_right_vel + R_BODY*des_rotational_vel)); Serial.print(",");
+      Serial.print((0.0*des_forward_vel - 1*des_right_vel + R_BODY*des_rotational_vel)); Serial.print(",");
+      Serial.print((-0.86602*des_forward_vel + 0.5*des_right_vel + R_BODY*des_rotational_vel)); Serial.print(",");
+      
+      Serial.print(curr_PWM_1); Serial.print(",");
+      Serial.print(curr_PWM_2); Serial.print(",");
+      Serial.print(curr_PWM_3); Serial.print("X");
+      
+      Serial.print(motor_1_integrated); Serial.print(",");
+      Serial.print(motor_2_integrated); Serial.print(",");
+      Serial.print(motor_3_integrated); Serial.print("X");
+
       inData = ""; // Clear received buffer_
       updateDriveMotors();
      }
