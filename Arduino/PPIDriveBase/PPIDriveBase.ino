@@ -175,9 +175,9 @@ void parseSerial(){
 
     // Process message when new line character is recieved
     if ((received == 'X') && (inData.length() <= 5)){
-      //Serial.print("Arduino Received: ");
-      //Serial.print(inData);
-      //Serial.print("\noutput\n");
+      //Serial.write("Arduino Received: ");
+      //Serial.write(inData);
+      //Serial.write("\noutput\n");
 
       int buffer_ = 0;
       int inputSize = inData.length() - 2;
@@ -190,27 +190,27 @@ void parseSerial(){
       else if(inputSize == 3)
         buffer_ = ((inData.charAt(1)-48)*100)+((inData.charAt(2)-48)*10)+(inData.charAt(3)-48);    
       
-      //Serial.print("buffer_: ");
-      //Serial.print(buffer_);
+      //Serial.write("buffer_: ");
+      //Serial.write(buffer_);
       if(inData.charAt(0) == 'B'){   
         des_forward_vel = MAX_VEL*(buffer_ - 500)/500.0;
         
-        //Serial.print("Read in: ");
-        //Serial.print(inData);
+        //Serial.write("Read in: ");
+        //Serial.write(inData);
       }
       else if((inData.charAt(0) == 'A')){        
         des_right_vel = -MAX_VEL*(buffer_ - 500)/500.0;
         
-        //Serial.print("Read in: ");
-        //Serial.print(inData);
+        //Serial.write("Read in: ");
+        //Serial.write(inData);
       }
       else if((inData.charAt(0) == 'C')){ 
         des_rotational_vel = MAX_ROT_VEL*(buffer_ - 500)/500.0;
         
-        //Serial.print("Read in: ");
-        //Serial.print(inData);
-        //Serial.print("New Forward Vel: ");
-        //Serial.println(des_rotational_vel);
+        //Serial.write("Read in: ");
+        //Serial.write(inData);
+        //Serial.write("New Forward Vel: ");
+        //Serial.writeln(des_rotational_vel);
       
       }
       //else if( inData.charAt(0) == 'D' && inData.length() <= 3){}
@@ -225,14 +225,18 @@ void parseSerial(){
       Serial.print((0.86602*des_forward_vel + 0.5*des_right_vel + R_BODY*des_rotational_vel)); Serial.print(",");
       Serial.print((0.0*des_forward_vel - 1*des_right_vel + R_BODY*des_rotational_vel)); Serial.print(",");
       Serial.print((-0.86602*des_forward_vel + 0.5*des_right_vel + R_BODY*des_rotational_vel)); Serial.print(",");
+
+      Serial.print(des_forward_vel); Serial.print(",");
+      Serial.print(des_right_vel); Serial.print(",");
+      Serial.print(des_rotational_vel); Serial.print(",");
       
       Serial.print(curr_PWM_1); Serial.print(",");
       Serial.print(curr_PWM_2); Serial.print(",");
-      Serial.print(curr_PWM_3); Serial.print("X");
+      Serial.print(curr_PWM_3); Serial.print(",");
       
       Serial.print(motor_1_integrated); Serial.print(",");
       Serial.print(motor_2_integrated); Serial.print(",");
-      Serial.print(motor_3_integrated); Serial.print("X");
+      Serial.print(motor_3_integrated); Serial.println("X");
 
       inData = ""; // Clear received buffer_
       updateDriveMotors();

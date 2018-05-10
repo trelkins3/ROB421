@@ -6,10 +6,10 @@ v3 = 0.0254*enc3;
 figure(3)
 subplot(2,1,1)
 hold off
-plot(t/1000000,0.0254*enc1)
+plot(t,0.0254*enc1)
 hold on
-plot(t/1000000,0.0254*enc2)
-plot(t/1000000,0.0254*enc3)
+plot(t,0.0254*enc2)
+plot(t,0.0254*enc3)
 grid on
 xlabel('Time (sec)');
 ylabel('Speed (meters/sec)');
@@ -17,7 +17,7 @@ legend('Motor 1','Motor 2','Motor 3')
 
 subplot(2,1,2)
 hold off
-plot(t/1000000,12/255*pwm)
+plot(t,12/255*pwm)
 grid on
 xlabel('Time (sec)');
 ylabel('Applied Voltage (V)');
