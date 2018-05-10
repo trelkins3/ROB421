@@ -110,9 +110,9 @@ void updateDriveMotors(){
   motor_2_integrated = motor_2_integrated + (motor_2_speed - _Enc2_Vel)*(loopPeriod*0.000001);
   motor_3_integrated = motor_3_integrated + (motor_3_speed - _Enc3_Vel)*(loopPeriod*0.000001);
   
-  analogWrite(DRIVE_1_PWM,min(0,abs(getFeedForward( motor_1_speed, 1)) + KP*(motor_1_speed - _Enc1_Vel) + KI*motor_1_integrated));
-  analogWrite(DRIVE_2_PWM,min(0,abs(getFeedForward( motor_2_speed, 2)) + KP*(motor_2_speed - _Enc2_Vel) + KI*motor_2_integrated));
-  analogWrite(DRIVE_3_PWM,min(0,abs(getFeedForward( motor_3_speed, 3)) + KP*(motor_3_speed - _Enc3_Vel) + KI*motor_3_integrated));
+  analogWrite(DRIVE_1_PWM,min(255,abs(getFeedForward( motor_1_speed, 1)) + KP*(motor_1_speed - _Enc1_Vel) + KI*motor_1_integrated));
+  analogWrite(DRIVE_2_PWM,min(255,abs(getFeedForward( motor_2_speed, 2)) + KP*(motor_2_speed - _Enc2_Vel) + KI*motor_2_integrated));
+  analogWrite(DRIVE_3_PWM,min(255,abs(getFeedForward( motor_3_speed, 3)) + KP*(motor_3_speed - _Enc3_Vel) + KI*motor_3_integrated));
   
   digitalWrite(DRIVE_1_DIR_A, motor_1_speed > 0);
   digitalWrite(DRIVE_1_DIR_B, motor_1_speed <= 0);
