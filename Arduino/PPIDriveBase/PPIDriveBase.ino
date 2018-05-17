@@ -1,12 +1,13 @@
 #include <Encoder.h>
 #include <math.h>
+#include <AccelStepper.h>
 
 #define MAX_VEL 40
-#define MAX_ROT_VEL 0.1
+#define MAX_ROT_VEL 0.5
 #define R_BODY 15.748
 
-#define KP 5.00
-#define KI 0.00
+#define KP 20.00
+#define KI 8.00
 
 #define DRIVE_1_PWM 29
 #define DRIVE_1_DIR_A 27
@@ -26,7 +27,13 @@
 #define ENC_3_A 25
 #define ENC_3_B 26
 
-#define VEL_SMOOTHING_FACTOR 0.75
+#define STEPPER_STEP_PIN 6
+#define STEPPER_DIR_PIN 5
+#define STEPPER_ENABLE_PIN 13
+#define MOTOR_ENABLE_INPUT 14
+#define LIMIT 23
+
+#define VEL_SMOOTHING_FACTOR 0.9
 // 10.2101761242 inch per rev
 // per
 // 537.6 steps per output revolution
@@ -64,6 +71,18 @@ String inData = "";
 long i;
 bool dir = false;
 
+enum throwerMechanismState{
+readyToThrow,
+throwing,
+stopping,
+retracting
+};
+
+AccelStepper stepper(AccelStepper::DRIVER,STEPPER_STEP_PIN,STEPPER_DIR_PIN); // Defaults to AccelStepper::FULL4WIRE (4 pins) on 2, 3, 4, 5
+bool throwCommanded;
+throwerMechanismState throwState;
+long throwerTimer;
+
 void setup() {   
   Serial.begin(115200);
   
@@ -78,9 +97,13 @@ void setup() {
   pinMode(DRIVE_3_PWM, OUTPUT); 
   pinMode(DRIVE_3_DIR_A, OUTPUT); 
   pinMode(DRIVE_3_DIR_B, OUTPUT); 
+  
+  pinMode (LIMIT, INPUT);
 
- 
-
+  pinMode(MOTOR_ENABLE_INPUT, INPUT);
+  pinMode(STEPPER_ENABLE_PIN, OUTPUT);
+  stepper.setMaxSpeed(500);
+  stepper.setAcceleration(3000);
 
   delay(3000);
   
@@ -98,11 +121,12 @@ void loop() {
   parseSerial();
   updateVelocityEstimates();
   updateDriveMotors();
+  updateThrower();
   
-
-  des_forward_vel = 0.98*des_forward_vel;
-  des_right_vel = 0.98*des_right_vel;
-  des_rotational_vel = 0.98*des_rotational_vel;
+  digitalWrite(STEPPER_ENABLE_PIN,!digitalRead(MOTOR_ENABLE_INPUT));
+  //des_forward_vel = 0.999*des_forward_vel;
+  //des_right_vel = 0.999*des_right_vel;
+  //des_rotational_vel = 0.999*des_rotational_vel;
 }
 
 void updateDriveMotors(){
@@ -213,6 +237,9 @@ void parseSerial(){
         //Serial.writeln(des_rotational_vel);
       
       }
+      else if((inData.charAt(0) == 'D')){
+        throwCommanded = (buffer_ > 0);
+      }
       //else if( inData.charAt(0) == 'D' && inData.length() <= 3){}
       Serial.print(STEP_TO_DIST*(enc1.read())); Serial.print(",");
       Serial.print(STEP_TO_DIST*(enc2.read())); Serial.print(",");
@@ -239,12 +266,55 @@ void parseSerial(){
       Serial.print(motor_3_integrated); Serial.println("X");
 
       inData = ""; // Clear received buffer_
-      updateDriveMotors();
      }
      
    }
    else if(inData.length() > 5)
      inData = "";
+}
+
+void updateThrower(){
+  //Finite State Machine Represenation of throwing mechanism control
+  //Handle Transitions first
+
+  // Throw if mechanism is ready to fire and command flag is true 
+  if( throwState == readyToThrow && throwCommanded == true){
+    stepper.setMaxSpeed(100000);
+    stepper.setAcceleration(40000); 
+    stepper.moveTo(-6000); //Go way past
+
+    Serial.println("Began Throw");
+    throwState = throwing;
+  }
+  else if( throwState == throwing && stepper.currentPosition() < -1100){
+    stepper.setAcceleration(500000);  //Allow us to stop as fast as possible
+    stepper.moveTo(-500); // Stop as fast as possible: sets new target
+
+    throwerTimer = millis();
+    
+    Serial.println("Stop Throw");
+    throwState = stopping;
+  }
+  else if( throwState == stopping && millis() - throwerTimer > 1000 ){
+    stepper.setAcceleration(1000); 
+    stepper.setMaxSpeed(300);
+    stepper.moveTo(40000);
+    
+    Serial.println("Began Retracting");
+    throwState = retracting;
+  }
+  else if( throwState == retracting && digitalRead(LIMIT) == HIGH){
+    stepper.setAcceleration(600000);
+    stepper.stop(); // Stop as fast as possible: sets new target
+    stepper.setCurrentPosition(0); //Reset stepper count to zero
+
+    Serial.println("Retracted");
+    throwState = readyToThrow;
+  }
+  throwCommanded = false;
+
+  //Update the stepper Command
+  stepper.run();
 }
 
 double sign(double value) { 
