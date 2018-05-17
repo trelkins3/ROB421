@@ -27,13 +27,13 @@
 #define ENC_3_A 25
 #define ENC_3_B 26
 
-#define STEPPER_STEP_PIN 6
-#define STEPPER_DIR_PIN 5
+#define STEPPER_STEP_PIN 5
+#define STEPPER_DIR_PIN 6
 #define STEPPER_ENABLE_PIN 13
 #define MOTOR_ENABLE_INPUT 14
 #define LIMIT 23
 
-#define VEL_SMOOTHING_FACTOR 0.9
+#define VEL_SMOOTHING_FACTOR 0.92
 // 10.2101761242 inch per rev
 // per
 // 537.6 steps per output revolution
@@ -263,7 +263,9 @@ void parseSerial(){
       
       Serial.print(motor_1_integrated); Serial.print(",");
       Serial.print(motor_2_integrated); Serial.print(",");
-      Serial.print(motor_3_integrated); Serial.println("X");
+      Serial.print(motor_3_integrated); Serial.print(",");
+      
+      Serial.print(throwState); Serial.println("X");
 
       inData = ""; // Clear received buffer_
      }
@@ -283,7 +285,7 @@ void updateThrower(){
     stepper.setAcceleration(40000); 
     stepper.moveTo(-6000); //Go way past
 
-    Serial.println("Began Throw");
+    //Serial.println("Began Throw");
     throwState = throwing;
   }
   else if( throwState == throwing && stepper.currentPosition() < -1100){
@@ -292,7 +294,7 @@ void updateThrower(){
 
     throwerTimer = millis();
     
-    Serial.println("Stop Throw");
+    //Serial.println("Stop Throw");
     throwState = stopping;
   }
   else if( throwState == stopping && millis() - throwerTimer > 1000 ){
@@ -300,7 +302,7 @@ void updateThrower(){
     stepper.setMaxSpeed(300);
     stepper.moveTo(40000);
     
-    Serial.println("Began Retracting");
+    //Serial.println("Began Retracting");
     throwState = retracting;
   }
   else if( throwState == retracting && digitalRead(LIMIT) == HIGH){
@@ -308,7 +310,7 @@ void updateThrower(){
     stepper.stop(); // Stop as fast as possible: sets new target
     stepper.setCurrentPosition(0); //Reset stepper count to zero
 
-    Serial.println("Retracted");
+    //Serial.println("Retracted");
     throwState = readyToThrow;
   }
   throwCommanded = false;
