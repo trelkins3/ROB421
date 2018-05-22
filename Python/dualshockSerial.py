@@ -8,8 +8,10 @@ import struct
 BLACK    = (   0,   0,   0)
 WHITE    = ( 255, 255, 255)
 
+# Change this to match the correct port
 ser = serial.Serial('/dev/ttyACM0', 57600)
 
+#file = open("debugLog.txt","w+")
 # This is a simple class that will help us print to the screen
 # It has nothing to do with the joysticks, just outputting the
 # information.
@@ -66,9 +68,12 @@ while(True):
         
         # Possible joystick actions: JOYAXISMOTION JOYBALLMOTION JOYBUTTONDOWN JOYBUTTONUP JOYHATMOTION
         if event.type == pygame.JOYBUTTONDOWN:
-            print("Joystick button pressed.")
-        if event.type == pygame.JOYBUTTONUP:
-            print("Joystick button released.")
+            print("LAUNCH.")
+            if(ser.out_waiting == 0):
+                ser.write(('D000X').encode('utf-8'))
+                print(('D000X').encode('utf-8'))
+        #if event.type == pygame.JOYBUTTONUP:
+            #print("Joystick button released.")
 
     # Get count of joysticks
     joystick_count = pygame.joystick.get_count()
@@ -82,7 +87,7 @@ while(True):
         # the other.
         axes = joystick.get_numaxes()
         
-        if(ser.out_waiting == 0):
+        if(ser.out_waiting == 0):           
             for i in range(0,4):
                 if (i != 2):
                     axis = joystick.get_axis(i)
@@ -91,19 +96,26 @@ while(True):
                     
                     if(i == 0):
                         ser.write(('A' + temp + 'X').encode('utf-8'))
-                         #print((str("A") + str(abs(int(axis*1000)%1000)) + '\n').encode('utf-8'))
+                        #print((str("A") + str(abs(int(axis*1000)%1000)) + '\n').encode('utf-8'))
                     elif(i == 1):
                         ser.write(('B' + temp + 'X').encode('utf-8'))
                         #print((str("B") + str(abs(int(axis*1000)%1000)) + '\n').encode('utf-8'))
                     elif(i == 3):
                         ser.write(('C' + temp + 'X').encode('utf-8'))
                         #print((str("C") + str(abs(int(axis*1000)%1000)) + '\n').encode('utf-8'))
-
+        
+        # This will most definitely need tweaking
+        #if(ser.in_waiting != 0):
+            #while((ser.read()).decode('utf-8') != 'X'):
+                #file.write((ser.read()).decode('utf-8'))
+        
+        #file.write('\n')
 #elif(i == 4):# Needs to be rewritten as button
                     #print(str("D") + str(abs(int(axis*1000)%1000)) + '\n')
             #textPrint.unindent()
 
     # Limit to 20 frames per second
+    
     clock.tick(100)
     
 # Close the window and quit.
@@ -111,3 +123,4 @@ while(True):
 # on exit if running from IDLE.
 pygame.quit()
 ser.close()
+file.close()

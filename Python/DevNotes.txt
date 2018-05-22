@@ -1,4 +1,4 @@
-=== tracker.py ===	If python is configured to PATH, run python tracker.py
+=== moduleCV.py ===	If python is configured to PATH, run python tracker.py
 Line 8: Change "grb_2.mp4" to 0 or 1 when a functional camera is plugged in.
 	Video devices will need to be checked via command line on Linux.
 Line 9: Will determine if cap object opened correctly.

@@ -47,12 +47,12 @@ void updateDriveMotors(){
   Serial.print(" Motor rot: ");
   Serial.println(des_rotational_vel);*/
   
-  Serial.print(" Motor 1: ");
+  /*Serial.print(" Motor 1: ");
   Serial.print(motor_1_speed);
   Serial.print(" Motor 2: ");
   Serial.print(motor_2_speed);
   Serial.print(" Motor 3: ");
-  Serial.println(motor_3_speed);
+  Serial.println(motor_3_speed);*/
   
   
   analogWrite(DRIVE_1_PWM_PIN,100*abs(motor_1_speed));
@@ -112,9 +112,11 @@ void loop(){
         //Serial.println(des_rotational_vel);
       
       }
-      //else if( inData.charAt(0) == 'D' && inData.length() <= 3){}
+      else if(inData.charAt(0) == 'D'){
+        Serial.print(inData);  
+      }
       
-      Serial.print('\n');
+      //Serial.print("test");
       inData = ""; // Clear received buffer
       updateDriveMotors();
      }
