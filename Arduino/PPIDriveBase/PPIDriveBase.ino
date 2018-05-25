@@ -1,6 +1,8 @@
+#define ENCODER_OPTIMIZE_INTERRUPTS // optimized interrupts.. if cause issue, remove line
 #include <Encoder.h>
 #include <math.h>
 #include <AccelStepper.h>
+#include <i2c_t3.h>
 
 #define MAX_VEL 40
 #define MAX_ROT_VEL 0.5
@@ -39,6 +41,22 @@
 // 537.6 steps per output revolution
 #define STEP_TO_DIST 0.01899214308
 
+// gross stuff for i2c comm
+#define TCS34725_ADDRESS          (0x29)
+#define TCS34725_COMMAND_BIT      (0x80)
+#define TCS34725_ENABLE           (0x00)
+#define TCS34725_ENABLE_AEN       (0x02)    /* RGBC Enable - Writing 1 actives the ADC, 0 disables it */
+#define TCS34725_ENABLE_PON       (0x01)    /* Power on - Writing 1 activates the internal oscillator, 0 disables it */                   
+#define TCS34725_ID               (0x12)    /* 0x44 = TCS34721/TCS34725, 0x4D = TCS34723/TCS34727 */
+#define TCS34725_CDATAL           (0x14)    /* Clear channel data */
+#define TCS34725_CDATAH           (0x15)
+#define TCS34725_RDATAL           (0x16)    /* Red channel data */
+#define TCS34725_RDATAH           (0x17)
+#define TCS34725_GDATAL           (0x18)    /* Green channel data */
+#define TCS34725_GDATAH           (0x19)
+#define TCS34725_BDATAL           (0x1A)    /* Blue channel data */
+#define TCS34725_BDATAH           (0x1B)
+
 double des_forward_vel = 0;
 double des_right_vel = 0;
 double des_rotational_vel = 0;
@@ -68,8 +86,16 @@ unsigned long loopPeriod;
 
 String inData = "";
 
-long i;
-bool dir = false;
+// i2c vars
+unsigned long r; 
+unsigned long rBase[3]; 
+unsigned long g; 
+unsigned long gBase[3];
+unsigned long b; 
+unsigned long bBase[3]; 
+unsigned long c;
+unsigned long cBase[3]; 
+bool line[3] = {false,false,false}; 
 
 enum throwerMechanismState{
 readyToThrow,
@@ -114,13 +140,34 @@ void setup() {
   _Enc1_Prev_Count = 0;
   _Enc2_Prev_Count = 0;
   _Enc3_Prev_Count = 0;
-  i = 0;
+
+  // i2c initialization
+  beg();
+  
+  // initialize the RGB sensors
+  for (int i = 0; i < 3; i++)
+  {
+    write8(TCS34725_ENABLE, TCS34725_ENABLE_PON, i);
+    delay(3);
+    write8(TCS34725_ENABLE, TCS34725_ENABLE_PON | TCS34725_ENABLE_AEN, i);
+  }
+
+  //get initial values
+  for(int i = 0; i < 3; i++)
+  {
+    getRawData(&r, &g, &b, &c, i);
+    rBase[i] = r;
+    gBase[i] = g;
+    bBase[i] = b;
+    cBase[i] = c;
+  }
 }
 
 void loop() {
   parseSerial();
   updateVelocityEstimates();
   updateDriveMotors();
+  updateLine();
   updateThrower();
   
   digitalWrite(STEPPER_ENABLE_PIN,!digitalRead(MOTOR_ENABLE_INPUT));
@@ -129,7 +176,44 @@ void loop() {
   //des_rotational_vel = 0.999*des_rotational_vel;
 }
 
-void updateDriveMotors(){
+void updateDriveMotors()
+{
+  // check for line
+  if(line[0] == true) // right line
+  {
+    if(des_right_vel > 0) // dont know correct direction, check this!!
+      des_right_vel = 0;
+    else if (des_right_vel < 0)
+      line[0] = false;
+  }
+
+  else if(line[1] == true) // front line
+  {
+    if(des_forward_vel > 0) // dont know correct direction, check this!!
+      des_forward_vel = 0;
+    else if (des_forward_vel < 0)
+      line[1] = false;
+  }
+
+  else if(line[2] == true) // left line
+  {
+    if(des_right_vel < 0) // dont know correct direction, check this!!
+      des_right_vel = 0;
+    else if (des_right_vel > 0)
+      line[2] = false;
+  }
+
+  else if(line[2] == true && line[0] == true) // "back" line
+  {
+    if(des_forward_vel < 0) // dont know correct direction, check this!!
+      des_forward_vel = 0;
+    else if (des_forward_vel > 0)
+    {
+      line[2] = false;
+      line[0] = false;
+    }
+  }
+  
   double motor_1_speed = (0.86602*des_forward_vel + 0.5*des_right_vel + R_BODY*des_rotational_vel);
   double motor_2_speed = (0.0*des_forward_vel - 1*des_right_vel + R_BODY*des_rotational_vel);
   double motor_3_speed = (-0.86602*des_forward_vel + 0.5*des_right_vel + R_BODY*des_rotational_vel);
@@ -168,30 +252,6 @@ void updateVelocityEstimates(){
   prevMicros = prevMicros + loopPeriod;
 }
 
-//Note this does not apply any limits, 
-//if you ask for a velocity about the max possible 
-//it will give you a pwm over 255
-double getFeedForward(double velocity, int motor){
-  if(velocity == 0)
-    return 0;
-
-  //Magic numbers are from system ID fit
-  switch(motor){
-    case 1:
-      return sign(velocity)*( 13.54*exp(0.04429*abs(velocity)) + 4.571e-06*exp(0.3245*abs(velocity)));
-    break;
-    case 2:
-      return sign(velocity)*( 13.4*exp(0.03807*abs(velocity)) + 0.0002331*exp(0.2497*abs(velocity)));
-    break;
-    case 3:
-      return sign(velocity)*( 11.45*exp(0.0437*abs(velocity)) + 4.874e-06*exp(0.3278*abs(velocity))); 
-    break;
-    default:
-      return 0;
-    break;
-  }
-}
-
 void parseSerial(){
   if(Serial.available() > 0){
     char received = Serial.read();
@@ -217,7 +277,7 @@ void parseSerial(){
       //Serial.write("buffer_: ");
       //Serial.write(buffer_);
       if(inData.charAt(0) == 'B'){   
-        des_forward_vel = MAX_VEL*(buffer_ - 500)/500.0;
+        des_forward_vel = -MAX_VEL*(buffer_ - 500)/500.0;
         
         //Serial.write("Read in: ");
         //Serial.write(inData);
@@ -241,31 +301,31 @@ void parseSerial(){
         throwCommanded = (buffer_ > 0);
       }
       //else if( inData.charAt(0) == 'D' && inData.length() <= 3){}
-      Serial.print(STEP_TO_DIST*(enc1.read())); Serial.print(",");
-      Serial.print(STEP_TO_DIST*(enc2.read())); Serial.print(",");
-      Serial.print(STEP_TO_DIST*(enc3.read())); Serial.print(",");
-      
-      Serial.print(_Enc1_Vel); Serial.print(",");
-      Serial.print(_Enc2_Vel); Serial.print(",");
-      Serial.print(_Enc3_Vel); Serial.print(",");
-      
-      Serial.print((0.86602*des_forward_vel + 0.5*des_right_vel + R_BODY*des_rotational_vel)); Serial.print(",");
-      Serial.print((0.0*des_forward_vel - 1*des_right_vel + R_BODY*des_rotational_vel)); Serial.print(",");
-      Serial.print((-0.86602*des_forward_vel + 0.5*des_right_vel + R_BODY*des_rotational_vel)); Serial.print(",");
-
-      Serial.print(des_forward_vel); Serial.print(",");
-      Serial.print(des_right_vel); Serial.print(",");
-      Serial.print(des_rotational_vel); Serial.print(",");
-      
-      Serial.print(curr_PWM_1); Serial.print(",");
-      Serial.print(curr_PWM_2); Serial.print(",");
-      Serial.print(curr_PWM_3); Serial.print(",");
-      
-      Serial.print(motor_1_integrated); Serial.print(",");
-      Serial.print(motor_2_integrated); Serial.print(",");
-      Serial.print(motor_3_integrated); Serial.print(",");
-      
-      Serial.print(throwState); Serial.println("X");
+//      Serial.print(STEP_TO_DIST*(enc1.read())); Serial.print(",");
+//      Serial.print(STEP_TO_DIST*(enc2.read())); Serial.print(",");
+//      Serial.print(STEP_TO_DIST*(enc3.read())); Serial.print(",");
+//      
+//      Serial.print(_Enc1_Vel); Serial.print(",");
+//      Serial.print(_Enc2_Vel); Serial.print(",");
+//      Serial.print(_Enc3_Vel); Serial.print(",");
+//      
+//      Serial.print((0.86602*des_forward_vel + 0.5*des_right_vel + R_BODY*des_rotational_vel)); Serial.print(",");
+//      Serial.print((0.0*des_forward_vel - 1*des_right_vel + R_BODY*des_rotational_vel)); Serial.print(",");
+//      Serial.print((-0.86602*des_forward_vel + 0.5*des_right_vel + R_BODY*des_rotational_vel)); Serial.print(",");
+//
+//      Serial.print(des_forward_vel); Serial.print(",");
+//      Serial.print(des_right_vel); Serial.print(",");
+//      Serial.print(des_rotational_vel); Serial.print(",");
+//      
+//      Serial.print(curr_PWM_1); Serial.print(",");
+//      Serial.print(curr_PWM_2); Serial.print(",");
+//      Serial.print(curr_PWM_3); Serial.print(",");
+//      
+//      Serial.print(motor_1_integrated); Serial.print(",");
+//      Serial.print(motor_2_integrated); Serial.print(",");
+//      Serial.print(motor_3_integrated); Serial.print(",");
+//      
+//      Serial.print(throwState); Serial.println("X");
 
       inData = ""; // Clear received buffer_
      }
@@ -319,6 +379,218 @@ void updateThrower(){
   stepper.run();
 }
 
+void updateLine()
+{
+  // loop through and get the data from each sensor
+  for(int i = 0; i < 3; i++)
+  {
+    getRawData(&r, &g, &b, &c, i);
+  
+    Serial.print("BASE:\t"); Serial.print(i);
+    Serial.print("\tR:\t"); Serial.print(rBase[i]);
+    Serial.print("\tG:\t"); Serial.print(gBase[i]);
+    Serial.print("\tB:\t"); Serial.println(bBase[i]);
+
+    Serial.print("Sensor:\t"); Serial.print(i);
+    Serial.print("\tR:\t"); Serial.print(r);
+    Serial.print("\tG:\t"); Serial.print(g);
+    Serial.print("\tB:\t"); Serial.print(b);
+    Serial.print("\tC:\t"); Serial.println(c);
+
+    //check for line
+    if((r > rBase[i] + 100) && (g < gBase[i] - 100) && (b < bBase[i] - 100) && c > (cBase[i] + 100)) // Modify values here
+    {
+      line[i] = true;
+      Serial.print("Line found on:\t"); Serial.println(i + 1);
+    }
+
+    // update running average
+    rBase[i] = (178 * r + (256 - 178) * rBase[i])/ 256;
+    gBase[i] = (178 * g + (256 - 178) * gBase[i])/ 256;
+    bBase[i] = (178 * b + (256 - 178) * bBase[i])/ 256;
+    cBase[i] = (178 * c + (256 - 178) * cBase[i])/ 256;
+  }  
+}
+
+/**************************************************************************/
+/*!
+    Helper functions
+*/
+/**************************************************************************/
+//Note this does not apply any limits, 
+//if you ask for a velocity about the max possible 
+//it will give you a pwm over 255
+double getFeedForward(double velocity, int motor){
+  if(velocity == 0)
+    return 0;
+
+  //Magic numbers are from system ID fit
+  switch(motor){
+    case 1:
+      return sign(velocity)*( 13.54*exp(0.04429*abs(velocity)) + 4.571e-06*exp(0.3245*abs(velocity)));
+    break;
+    case 2:
+      return sign(velocity)*( 13.4*exp(0.03807*abs(velocity)) + 0.0002331*exp(0.2497*abs(velocity)));
+    break;
+    case 3:
+      return sign(velocity)*( 11.45*exp(0.0437*abs(velocity)) + 4.874e-06*exp(0.3278*abs(velocity))); 
+    break;
+    default:
+      return 0;
+    break;
+  }
+}
 double sign(double value) { 
  return double((value>0)-(value<0)); 
 }
+
+//Initializes I2C and configures the sensor (call this function before
+//  doing anything else)
+void beg(void) 
+{
+  // initalize scl/sda
+  Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 1000);
+  Wire.setDefaultTimeout(200000);
+
+  Wire1.begin(I2C_MASTER, 0x00, I2C_PINS_37_38, I2C_PULLUP_EXT, 1000);
+  Wire1.setDefaultTimeout(200000);
+
+  Wire2.begin(I2C_MASTER, 0x00, I2C_PINS_3_4, I2C_PULLUP_EXT, 1000);
+  Wire2.setDefaultTimeout(200000);
+  
+  /* Make sure we're actually connected */
+  uint8_t x = read8(TCS34725_ID, 0);
+  uint8_t y = read8(TCS34725_ID, 1);
+  uint8_t z = read8(TCS34725_ID, 2);
+
+  if (((x != 0x44) && (x != 0x10)) || ((y != 0x44) && (y != 0x10)) || ((z != 0x44) && (z != 0x10)))
+  {
+      Serial.println("TCS34725 ERROR: ");
+      
+      // traceback checking each read independently
+      if((x != 0x44) && (x != 0x10))
+      {
+        Serial.println("on 0.");
+      }
+      if((y != 0x44) && (y != 0x10))
+      {
+        Serial.println("on 1.");
+      }
+      if((z != 0x44) && (z != 0x10))
+      {
+        Serial.println("on 2.");
+      }
+  }
+}
+//Reads the raw red, green, blue and clear channel values
+void getRawData (unsigned long *r, unsigned long *g, unsigned long *b, unsigned long *c, int i)
+{
+  *c = read16(TCS34725_CDATAL, i);
+  *r = read16(TCS34725_RDATAL, i);
+  *g = read16(TCS34725_GDATAL, i);
+  *b = read16(TCS34725_BDATAL, i);
+}
+//Writes a register and an 8 bit value over I2C
+void write8 (uint8_t reg, uint32_t value, int i)
+{
+  if (i == 0)
+  {
+    Wire.beginTransmission(TCS34725_ADDRESS);
+    Wire.write(TCS34725_COMMAND_BIT | reg);
+    Wire.write(value & 0xFF);
+    Wire.endTransmission();
+}
+
+  if (i == 1)
+  {
+    Wire1.beginTransmission(TCS34725_ADDRESS);
+    Wire1.write(TCS34725_COMMAND_BIT | reg);
+    Wire1.write(value & 0xFF);
+    Wire1.endTransmission();
+  }
+
+  if (i == 2)
+  {
+    Wire2.beginTransmission(TCS34725_ADDRESS);
+    Wire2.write(TCS34725_COMMAND_BIT | reg);
+    Wire2.write(value & 0xFF);
+    Wire2.endTransmission();
+  }
+}
+//Reads an 8 bit value over I2C
+uint8_t read8(uint8_t reg, int i)
+{
+  if (i == 0)
+  {
+    Wire.beginTransmission(TCS34725_ADDRESS);
+    Wire.write(TCS34725_COMMAND_BIT | reg);
+    Wire.endTransmission();
+    Wire.requestFrom(TCS34725_ADDRESS, 1);
+    return Wire.read();
+  }
+
+  if (i == 1)
+  {
+    Wire1.beginTransmission(TCS34725_ADDRESS);
+    Wire1.write(TCS34725_COMMAND_BIT | reg);
+    Wire1.endTransmission();
+    Wire1.requestFrom(TCS34725_ADDRESS, 1);
+    return Wire1.read();
+  }
+
+  if (i == 2)
+  {
+    Wire2.beginTransmission(TCS34725_ADDRESS);
+    Wire2.write(TCS34725_COMMAND_BIT | reg);
+    Wire2.endTransmission();
+    Wire2.requestFrom(TCS34725_ADDRESS, 1);
+    return Wire2.read();
+  }
+  else
+    return 0;
+}
+//Reads a 16 bit values over I2C
+unsigned long read16(uint8_t reg, int i)
+{
+  long x; long t;
+
+  if (i == 0)
+  {
+    Wire.beginTransmission(TCS34725_ADDRESS);
+    Wire.write(TCS34725_COMMAND_BIT | reg);
+    Wire.endTransmission();
+    Wire.requestFrom(TCS34725_ADDRESS, 2);
+    t = Wire.read();
+    x = Wire.read();
+  }
+
+  else if (i == 1)
+  {
+    Wire1.beginTransmission(TCS34725_ADDRESS);
+    Wire1.write(TCS34725_COMMAND_BIT | reg);
+    Wire1.endTransmission();
+    Wire1.requestFrom(TCS34725_ADDRESS, 2);
+    t = Wire1.read();
+    x = Wire1.read();
+  }
+
+  else if (i == 2)
+  {
+    Wire2.beginTransmission(TCS34725_ADDRESS);
+    Wire2.write(TCS34725_COMMAND_BIT | reg);
+    Wire2.endTransmission();
+    Wire2.requestFrom(TCS34725_ADDRESS, 2);
+    t = Wire2.read();
+    x = Wire2.read();
+  }
+  else
+  {
+    t = 0;
+    x = 0;
+  }
+
+  x <<= 8;
+  x |= t;
+  return x;
+}
+
