@@ -56,6 +56,7 @@
 #define TCS34725_GDATAH           (0x19)
 #define TCS34725_BDATAL           (0x1A)    /* Blue channel data */
 #define TCS34725_BDATAH           (0x1B)
+#define alpha  100
 
 double des_forward_vel = 0;
 double des_right_vel = 0;
@@ -131,7 +132,7 @@ void setup() {
   stepper.setMaxSpeed(500);
   stepper.setAcceleration(3000);
 
-  delay(3000);
+  delay(30);
   
   prevMicros = micros();
   enc1.write(0);
@@ -179,32 +180,36 @@ void loop() {
 void updateDriveMotors()
 {
   // check for line
-  if(line[0] == true) // right line
+  if(line[0] == true) // left line
   {
+    Serial.println("Line on L");
     if(des_right_vel > 0) // dont know correct direction, check this!!
       des_right_vel = 0;
     else if (des_right_vel < 0)
       line[0] = false;
   }
 
-  else if(line[1] == true) // front line
+  if(line[1] == true) // front line
   {
+    Serial.println("Line in F");
     if(des_forward_vel > 0) // dont know correct direction, check this!!
       des_forward_vel = 0;
     else if (des_forward_vel < 0)
       line[1] = false;
   }
 
-  else if(line[2] == true) // left line
+  if(line[2] == true) // right line
   {
+    Serial.println("Line on R");
     if(des_right_vel < 0) // dont know correct direction, check this!!
       des_right_vel = 0;
     else if (des_right_vel > 0)
       line[2] = false;
   }
 
-  else if(line[2] == true && line[0] == true) // "back" line
+  if(line[2] == true && line[0] == true) // "back" line
   {
+    Serial.println("Line in B");
     if(des_forward_vel < 0) // dont know correct direction, check this!!
       des_forward_vel = 0;
     else if (des_forward_vel > 0)
@@ -386,29 +391,30 @@ void updateLine()
   {
     getRawData(&r, &g, &b, &c, i);
   
-    Serial.print("BASE:\t"); Serial.print(i);
-    Serial.print("\tR:\t"); Serial.print(rBase[i]);
-    Serial.print("\tG:\t"); Serial.print(gBase[i]);
-    Serial.print("\tB:\t"); Serial.println(bBase[i]);
+//    Serial.print("BASE:\t"); Serial.print(i);
+//    Serial.print("\tR:\t"); Serial.print(rBase[i]);
+//    Serial.print("\tG:\t"); Serial.print(gBase[i]);
+//    Serial.print("\tB:\t"); Serial.print(bBase[i]);
+//    Serial.print("\tC:\t"); Serial.println(cBase[i]);
 
-    Serial.print("Sensor:\t"); Serial.print(i);
-    Serial.print("\tR:\t"); Serial.print(r);
-    Serial.print("\tG:\t"); Serial.print(g);
-    Serial.print("\tB:\t"); Serial.print(b);
-    Serial.print("\tC:\t"); Serial.println(c);
+//    Serial.print("Sensor:\t"); Serial.print(i);
+//    Serial.print("\tR:\t"); Serial.print(r);
+//    Serial.print("\tG:\t"); Serial.print(g);
+//    Serial.print("\tB:\t"); Serial.print(b);
+//    Serial.print("\tC:\t"); Serial.println(c);
 
     //check for line
-    if((r > rBase[i] + 100) && (g < gBase[i] - 100) && (b < bBase[i] - 100) && c > (cBase[i] + 100)) // Modify values here
+    if((r > rBase[i] + 1000) && (g < gBase[i] - 1000) && (b < bBase[i] - 1000) && c > (cBase[i] + 200)) // Modify values here
     {
       line[i] = true;
       Serial.print("Line found on:\t"); Serial.println(i + 1);
     }
 
     // update running average
-    rBase[i] = (178 * r + (256 - 178) * rBase[i])/ 256;
-    gBase[i] = (178 * g + (256 - 178) * gBase[i])/ 256;
-    bBase[i] = (178 * b + (256 - 178) * bBase[i])/ 256;
-    cBase[i] = (178 * c + (256 - 178) * cBase[i])/ 256;
+    rBase[i] = (alpha * r + (256 - alpha) * rBase[i])/ 256;
+    gBase[i] = (alpha * g + (256 - alpha) * gBase[i])/ 256;
+    bBase[i] = (alpha * b + (256 - alpha) * bBase[i])/ 256;
+    cBase[i] = (alpha * c + (256 - alpha) * cBase[i])/ 256;
   }  
 }
 
@@ -449,14 +455,14 @@ double sign(double value) {
 void beg(void) 
 {
   // initalize scl/sda
-  Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 1000);
-  Wire.setDefaultTimeout(200000);
+  Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 4000);
+  Wire.setDefaultTimeout(20000);
 
-  Wire1.begin(I2C_MASTER, 0x00, I2C_PINS_37_38, I2C_PULLUP_EXT, 1000);
-  Wire1.setDefaultTimeout(200000);
+  Wire1.begin(I2C_MASTER, 0x00, I2C_PINS_37_38, I2C_PULLUP_EXT, 4000);
+  Wire1.setDefaultTimeout(20000);
 
-  Wire2.begin(I2C_MASTER, 0x00, I2C_PINS_3_4, I2C_PULLUP_EXT, 1000);
-  Wire2.setDefaultTimeout(200000);
+  Wire2.begin(I2C_MASTER, 0x00, I2C_PINS_3_4, I2C_PULLUP_EXT, 4000);
+  Wire2.setDefaultTimeout(20000);
   
   /* Make sure we're actually connected */
   uint8_t x = read8(TCS34725_ID, 0);
@@ -465,20 +471,20 @@ void beg(void)
 
   if (((x != 0x44) && (x != 0x10)) || ((y != 0x44) && (y != 0x10)) || ((z != 0x44) && (z != 0x10)))
   {
-      Serial.println("TCS34725 ERROR: ");
+      Serial.print("TCS34725 ERROR: ");
       
       // traceback checking each read independently
       if((x != 0x44) && (x != 0x10))
       {
-        Serial.println("on 0.");
+        Serial.println("on 1.");
       }
       if((y != 0x44) && (y != 0x10))
       {
-        Serial.println("on 1.");
+        Serial.println("on 2.");
       }
       if((z != 0x44) && (z != 0x10))
       {
-        Serial.println("on 2.");
+        Serial.println("on 3.");
       }
   }
 }
