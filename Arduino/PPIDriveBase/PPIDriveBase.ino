@@ -191,32 +191,25 @@ void updateDriveMotors()
 
   if(line[1] == true) // front line
   {
-    Serial.println("Line in F");
-    if(des_forward_vel > 0) // dont know correct direction, check this!!
-      des_forward_vel = 0;
-    else if (des_forward_vel < 0)
-      line[1] = false;
+    des_forward_vel = max(des_forward_vel,0);
   }
 
   if(line[2] == true) // right line
   {
-    Serial.println("Line on R");
-    if(des_right_vel < 0) // dont know correct direction, check this!!
-      des_right_vel = 0;
-    else if (des_right_vel > 0)
-      line[2] = false;
+    des_right_vel =  0.5 * (0.5*des_right_vel + 0.8660254*des_forward_vel) + 
+                    -0.8660254 * max(-0.8660254*des_right_vel + 0.5*des_forward_vel,0);
+
+    des_forward_vel =  0.8660254 * (0.5*des_right_vel + 0.8660254*des_forward_vel) + 
+                       0.5 * max(-0.8660254*des_right_vel + 0.5*des_forward_vel,0);
   }
 
-  if(line[2] == true && line[0] == true) // "back" line
+  if(line[0] == true) // left line
   {
-    Serial.println("Line in B");
-    if(des_forward_vel < 0) // dont know correct direction, check this!!
-      des_forward_vel = 0;
-    else if (des_forward_vel > 0)
-    {
-      line[2] = false;
-      line[0] = false;
-    }
+    des_right_vel =  0.5 * (0.5*des_right_vel - 0.8660254*des_forward_vel) + 
+                    0.8660254 * max(0.8660254*des_right_vel + 0.5*des_forward_vel,0);
+
+    des_forward_vel =  -0.8660254 * (0.5*des_right_vel - 0.8660254*des_forward_vel) + 
+                       0.5 * max(0.8660254*des_right_vel + 0.5*des_forward_vel,0);
   }
   
   double motor_1_speed = (0.86602*des_forward_vel + 0.5*des_right_vel + R_BODY*des_rotational_vel);
