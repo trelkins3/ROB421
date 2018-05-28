@@ -70,8 +70,8 @@ while(True):
         if event.type == pygame.JOYBUTTONDOWN:
             print("LAUNCH.")
             if(ser.out_waiting == 0):
-                ser.write(('D000X').encode('utf-8'))
-                print(('D000X').encode('utf-8'))
+                ser.write(('D100X').encode('utf-8'))
+                print(('D100X').encode('utf-8'))
         #if event.type == pygame.JOYBUTTONUP:
             #print("Joystick button released.")
 
