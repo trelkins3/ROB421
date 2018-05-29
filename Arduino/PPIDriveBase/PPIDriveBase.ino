@@ -180,18 +180,10 @@ void loop() {
 void updateDriveMotors()
 {
   // check for line
-  if(line[0] == true) // left line
-  {
-    Serial.println("Line on L");
-    if(des_right_vel > 0) // dont know correct direction, check this!!
-      des_right_vel = 0;
-    else if (des_right_vel < 0)
-      line[0] = false;
-  }
-
   if(line[1] == true) // front line
   {
     des_forward_vel = max(des_forward_vel,0);
+    line[1] = false;
   }
 
   if(line[2] == true) // right line
@@ -201,6 +193,7 @@ void updateDriveMotors()
 
     des_forward_vel =  0.8660254 * (0.5*des_right_vel + 0.8660254*des_forward_vel) + 
                        0.5 * max(-0.8660254*des_right_vel + 0.5*des_forward_vel,0);
+    line[2] = false;
   }
 
   if(line[0] == true) // left line
@@ -210,6 +203,7 @@ void updateDriveMotors()
 
     des_forward_vel =  -0.8660254 * (0.5*des_right_vel - 0.8660254*des_forward_vel) + 
                        0.5 * max(0.8660254*des_right_vel + 0.5*des_forward_vel,0);
+    line[0] = false;
   }
   
   double motor_1_speed = (0.86602*des_forward_vel + 0.5*des_right_vel + R_BODY*des_rotational_vel);
