@@ -1,0 +1,11 @@
+#!/bin/bash
+bluetoothctl << EOF
+connect 40:1B:5F:6E:8E:43
+exit
+EOF
+
+sleep 10
+
+echo
+echo Initializing control feed.
+python /home/pi/dualshockSerial.py

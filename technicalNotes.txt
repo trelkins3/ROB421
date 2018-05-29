@@ -10,3 +10,12 @@ Code you want to run:
 ./mjpg_streamer -i './input_uvc.so -y /dev/video0 -r 640x480 -f 15' -o './output_http.so -w ./www -p 8080'
 
 Then connect to [Raspberry Pi IP]:8080/?action=stream either via web browser or via VLC, must be on local network.
+
+Find the pi's local address with 'hostname -I' (ex. 10.0.0.62)
+
+On Windows:
+ipconfig
+ping [self]
+arp -a
+
+Use that to find the Pi?

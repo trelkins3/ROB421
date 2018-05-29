@@ -1,0 +1,4 @@
+#!/bin/bash
+cd /home/pi/mjpg-streamer-code-182/mjpg-streamer/
+LD_LIBRARY_PATH=.
+./mjpg_streamer -i './input_uvc.so -y /dev/video0 -r 640x480 -f 15' -o './output_http.so -w ./www -p 8080'
