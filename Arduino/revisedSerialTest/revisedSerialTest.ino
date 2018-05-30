@@ -95,19 +95,19 @@ void loop(){
         des_forward_vel = MAX_VEL*(buffer - 500)/500.0;
         
         //Serial.print("Read in: ");
-        //Serial.print(inData);
+        Serial.print(inData);
       }
       else if((inData.charAt(0) == 'B')){        
         des_right_vel = MAX_VEL*(buffer - 500)/500.0;
         
         //Serial.print("Read in: ");
-        //Serial.print(inData);
+        Serial.print(inData);
       }
       else if((inData.charAt(0) == 'C')){ 
         des_rotational_vel = MAX_ROT_VEL*(buffer - 500)/500.0;
         
         //Serial.print("Read in: ");
-        //Serial.print(inData);
+        Serial.print(inData);
         //Serial.print("New Forward Vel: ");
         //Serial.println(des_rotational_vel);
       
@@ -118,6 +118,7 @@ void loop(){
       
       //Serial.print("test");
       inData = ""; // Clear received buffer
+      Serial.print("\n");
       updateDriveMotors();
      }
      
